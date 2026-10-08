@@ -1,0 +1,155 @@
+<!DOCTYPE html>
+<html>
+
+<head>
+
+    <title>Weather App</title>
+
+    <style>
+
+        body {
+            font-family: Arial;
+            background: #eef5ff;
+            text-align: center;
+            padding-top: 80px;
+        }
+
+        .card {
+            background: white;
+            width: 400px;
+            margin: auto;
+            padding: 30px;
+            border-radius: 15px;
+            box-shadow: 0 5px 20px #ccc;
+        }
+
+        input {
+            padding: 12px;
+            width: 200px;
+            border: 1px solid #ccc;
+            border-radius: 5px;
+        }
+
+        button {
+            padding: 12px 20px;
+            border: none;
+            border-radius: 5px;
+            cursor: pointer;
+        }
+
+        #result {
+            margin-top: 25px;
+        }
+
+        .error {
+            color: red;
+        }
+
+    </style>
+
+</head>
+
+
+<body>
+
+<div class="card">
+
+    <h1>🌤️ Weather App</h1>
+
+    <input
+        id="city"
+        type="text"
+        placeholder="Enter city"
+    >
+
+    <button onclick="getWeather()">
+        Get Weather
+    </button>
+
+
+    <div id="result"></div>
+
+</div>
+
+
+<script>
+
+async function getWeather() {
+
+    const city =
+        document.getElementById("city").value.trim();
+
+    if (!city) {
+
+        document.getElementById("result").innerHTML =
+            "<p class='error'>Please enter a city</p>";
+
+        return;
+    }
+
+
+    document.getElementById("result").innerHTML =
+        "Loading...";
+
+
+    try {
+
+        const response = await fetch(
+            `/weather?city=${encodeURIComponent(city)}`
+        );
+
+
+        const data = await response.json();
+
+
+        console.log("FastAPI response:", data);
+
+
+        if (!data.success) {
+
+            document.getElementById("result").innerHTML =
+                `<p class="error">❌ ${data.error}</p>`;
+
+            return;
+        }
+
+
+        document.getElementById("result").innerHTML = `
+
+            <h2>📍 ${data.city}</h2>
+
+            <p>
+                🌡️ Temperature:
+                <b>${data.temperature} °C</b>
+            </p>
+
+            <p>
+                💧 Humidity:
+                <b>${data.humidity}%</b>
+            </p>
+
+            <p>
+                ☁️ Weather:
+                <b>${data.weather}</b>
+            </p>
+
+        `;
+
+    }
+    catch (error) {
+
+        console.error(error);
+
+        document.getElementById("result").innerHTML =
+            `<p class="error">
+                ❌ Unable to get weather
+            </p>`;
+    }
+
+}
+
+</script>
+
+</body>
+
+</html>

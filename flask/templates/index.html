@@ -1,0 +1,1106 @@
+<!DOCTYPE html>
+
+<html>
+
+<head>
+
+    <meta charset="UTF-8">
+
+    <meta
+        name="viewport"
+        content="width=device-width, initial-scale=1.0"
+    >
+
+    <title>
+        Flask Performance Monitor
+    </title>
+
+
+    <style>
+
+        * {
+            box-sizing: border-box;
+        }
+
+
+        body {
+
+            margin: 0;
+
+            font-family:
+                Arial,
+                Helvetica,
+                sans-serif;
+
+            background:
+                radial-gradient(
+                    circle at top,
+                    #172033,
+                    #080b12
+                );
+
+            color: white;
+
+            min-height: 100vh;
+
+            padding: 30px;
+        }
+
+
+        .container {
+
+            max-width: 1200px;
+
+            margin: auto;
+        }
+
+
+        .header {
+
+            display: flex;
+
+            justify-content:
+                space-between;
+
+            align-items: center;
+
+            margin-bottom: 30px;
+        }
+
+
+        .title {
+
+            font-size: 32px;
+
+            font-weight: bold;
+        }
+
+
+        .subtitle {
+
+            color: #9ca3af;
+
+            margin-top: 5px;
+        }
+
+
+        .status {
+
+            display: flex;
+
+            align-items: center;
+
+            gap: 8px;
+
+            padding: 10px 16px;
+
+            border-radius: 30px;
+
+            background: #101827;
+        }
+
+
+        .status-dot {
+
+            width: 10px;
+
+            height: 10px;
+
+            border-radius: 50%;
+
+            background: #f59e0b;
+
+            box-shadow:
+                0 0 10px #f59e0b;
+
+            animation:
+                pulse 1.5s infinite;
+        }
+
+
+        @keyframes pulse {
+
+            0% {
+                opacity: 1;
+            }
+
+            50% {
+                opacity: .4;
+            }
+
+            100% {
+                opacity: 1;
+            }
+
+        }
+
+
+        .dashboard {
+
+            display: grid;
+
+            grid-template-columns:
+                repeat(3, 1fr);
+
+            gap: 20px;
+        }
+
+
+        .card {
+
+            background:
+                rgba(
+                    17,
+                    24,
+                    39,
+                    .85
+                );
+
+            border:
+                1px solid
+                rgba(
+                    255,
+                    255,
+                    255,
+                    .08
+                );
+
+            border-radius: 18px;
+
+            padding: 20px;
+        }
+
+
+        .card-title {
+
+            color: #9ca3af;
+
+            font-size: 14px;
+
+            margin-bottom: 10px;
+        }
+
+
+        .number {
+
+            font-size: 30px;
+
+            font-weight: bold;
+        }
+
+
+        .gauge-card {
+
+            grid-column:
+                span 2;
+
+            min-height: 420px;
+
+            display: flex;
+
+            flex-direction: column;
+
+            align-items: center;
+
+            justify-content: center;
+        }
+
+
+        .gauge {
+
+            width: 330px;
+
+            max-width: 100%;
+        }
+
+
+        svg {
+
+            width: 100%;
+        }
+
+
+        .gauge-value {
+
+            font-size: 42px;
+
+            font-weight: bold;
+
+            text-align: center;
+
+            margin-top: -80px;
+        }
+
+
+        .gauge-label {
+
+            text-align: center;
+
+            color: #9ca3af;
+
+            margin-top: 8px;
+        }
+
+
+        .needle {
+
+            transition:
+                all .25s ease-out;
+        }
+
+
+        .buttons {
+
+            display: flex;
+
+            gap: 10px;
+
+            flex-wrap: wrap;
+
+            margin-top: 30px;
+        }
+
+
+        button {
+
+            border: none;
+
+            padding: 12px 18px;
+
+            border-radius: 10px;
+
+            cursor: pointer;
+
+            background: #f59e0b;
+
+            color: #111827;
+
+            font-weight: bold;
+        }
+
+
+        button:hover {
+
+            background: #d97706;
+
+            color: white;
+        }
+
+
+        button.secondary {
+
+            background: #374151;
+
+            color: white;
+        }
+
+
+        button.danger {
+
+            background: #dc2626;
+
+            color: white;
+        }
+
+
+        .chart-card {
+
+            grid-column:
+                span 3;
+        }
+
+
+        canvas {
+
+            width: 100%;
+
+            height: 250px;
+        }
+
+
+        @media(max-width: 900px) {
+
+            .dashboard {
+
+                grid-template-columns:
+                    1fr;
+            }
+
+
+            .gauge-card,
+            .chart-card {
+
+                grid-column:
+                    span 1;
+            }
+
+        }
+
+    </style>
+
+</head>
+
+
+<body>
+
+
+<div class="container">
+
+
+    <div class="header">
+
+        <div>
+
+            <div class="title">
+
+                🐍 Flask Performance Monitor
+
+            </div>
+
+
+            <div class="subtitle">
+
+                Real-time Flask API performance
+
+            </div>
+
+        </div>
+
+
+        <div class="status">
+
+            <span
+                class="status-dot"
+            ></span>
+
+
+            <span id="status">
+
+                Flask Connected
+
+            </span>
+
+        </div>
+
+    </div>
+
+
+
+    <div class="dashboard">
+
+
+        <!-- GAUGE -->
+
+        <div class="card gauge-card">
+
+
+            <div class="card-title">
+
+                REQUESTS PER SECOND
+
+            </div>
+
+
+            <div class="gauge">
+
+
+                <svg viewBox="0 0 300 220">
+
+
+                    <!-- Gauge -->
+
+                    <path
+                        d="
+                        M45 180
+                        A105 105
+                        0 0 1
+                        255 180
+                        "
+                        fill="none"
+
+                        stroke="#374151"
+
+                        stroke-width="20"
+
+                        stroke-linecap="round"
+                    />
+
+
+                    <!-- Active -->
+
+                    <path
+                        id="arc"
+
+                        d="
+                        M45 180
+                        A105 105
+                        0 0 1
+                        255 180
+                        "
+
+                        fill="none"
+
+                        stroke="#f59e0b"
+
+                        stroke-width="20"
+
+                        stroke-linecap="round"
+
+                        stroke-dasharray="330"
+
+                        stroke-dashoffset="330"
+                    />
+
+
+                    <!-- Needle -->
+
+                    <line
+                        id="needle"
+
+                        class="needle"
+
+                        x1="150"
+
+                        y1="180"
+
+                        x2="150"
+
+                        y2="85"
+
+                        stroke="white"
+
+                        stroke-width="5"
+
+                        stroke-linecap="round"
+                    />
+
+
+                    <circle
+                        cx="150"
+
+                        cy="180"
+
+                        r="10"
+
+                        fill="white"
+                    />
+
+
+                    <text
+                        x="35"
+                        y="205"
+                        fill="#9ca3af"
+                    >
+                        0
+                    </text>
+
+
+                    <text
+                        x="140"
+                        y="55"
+                        fill="#9ca3af"
+                    >
+                        500
+                    </text>
+
+
+                    <text
+                        x="235"
+                        y="205"
+                        fill="#9ca3af"
+                    >
+                        1000
+                    </text>
+
+                </svg>
+
+
+                <div
+                    id="rps"
+                    class="gauge-value"
+                >
+                    0
+                </div>
+
+
+                <div class="gauge-label">
+
+                    requests / second
+
+                </div>
+
+            </div>
+
+
+            <div class="buttons">
+
+
+                <button
+                    onclick="generateTraffic()"
+                >
+
+                    🚀 Generate Traffic
+
+                </button>
+
+
+                <button
+                    class="secondary"
+                    onclick="generateSlowTraffic()"
+                >
+
+                    🐢 Slow Requests
+
+                </button>
+
+
+                <button
+                    class="danger"
+                    onclick="generateErrors()"
+                >
+
+                    ❌ Errors
+
+                </button>
+
+
+            </div>
+
+        </div>
+
+
+
+        <!-- TOTAL -->
+
+        <div class="card">
+
+            <div class="card-title">
+
+                TOTAL REQUESTS
+
+            </div>
+
+            <div
+                id="total"
+                class="number"
+            >
+                0
+            </div>
+
+        </div>
+
+
+
+        <!-- SUCCESS -->
+
+        <div class="card">
+
+            <div class="card-title">
+
+                SUCCESSFUL
+
+            </div>
+
+            <div
+                id="success"
+                class="number"
+            >
+                0
+            </div>
+
+        </div>
+
+
+
+        <!-- ERRORS -->
+
+        <div class="card">
+
+            <div class="card-title">
+
+                ERRORS
+
+            </div>
+
+            <div
+                id="errors"
+                class="number"
+            >
+                0
+            </div>
+
+        </div>
+
+
+
+        <!-- LATENCY -->
+
+        <div class="card">
+
+            <div class="card-title">
+
+                AVG RESPONSE TIME
+
+            </div>
+
+            <div
+                id="latency"
+                class="number"
+            >
+                0 ms
+            </div>
+
+        </div>
+
+
+
+        <!-- ACTIVE -->
+
+        <div class="card">
+
+            <div class="card-title">
+
+                ACTIVE REQUESTS
+
+            </div>
+
+            <div
+                id="active"
+                class="number"
+            >
+                0
+            </div>
+
+        </div>
+
+
+
+        <!-- CHART -->
+
+        <div class="card chart-card">
+
+            <div class="card-title">
+
+                LIVE REQUEST RATE
+
+            </div>
+
+
+            <canvas
+                id="chart"
+                width="1000"
+                height="250"
+            ></canvas>
+
+        </div>
+
+
+    </div>
+
+</div>
+
+
+
+<script>
+
+
+let history = [];
+
+let lastTotal = 0;
+
+let lastTime = Date.now();
+
+
+
+async function updateDashboard() {
+
+
+    try {
+
+
+        const response =
+            await fetch("/metrics");
+
+
+        const data =
+            await response.json();
+
+
+        document.getElementById(
+            "total"
+        ).innerText =
+            data.total_requests;
+
+
+        document.getElementById(
+            "success"
+        ).innerText =
+            data.successful_requests;
+
+
+        document.getElementById(
+            "errors"
+        ).innerText =
+            data.failed_requests;
+
+
+        document.getElementById(
+            "latency"
+        ).innerText =
+            data.average_latency_ms
+            + " ms";
+
+
+        document.getElementById(
+            "active"
+        ).innerText =
+            data.active_requests;
+
+
+        const now =
+            Date.now();
+
+
+        const elapsed =
+            (now - lastTime) / 1000;
+
+
+        let rps = 0;
+
+
+        if (elapsed > 0) {
+
+            rps =
+                (
+                    data.total_requests
+                    -
+                    lastTotal
+                )
+                /
+                elapsed;
+
+        }
+
+
+        lastTotal =
+            data.total_requests;
+
+
+        lastTime =
+            now;
+
+
+        rps =
+            Math.min(
+                1000,
+                Math.max(
+                    0,
+                    rps
+                )
+            );
+
+
+        document.getElementById(
+            "rps"
+        ).innerText =
+            Math.round(rps);
+
+
+        updateGauge(rps);
+
+
+        history.push(rps);
+
+
+        if (
+            history.length > 60
+        ) {
+
+            history.shift();
+
+        }
+
+
+        drawChart();
+
+
+    }
+
+    catch(error) {
+
+        document.getElementById(
+            "status"
+        ).innerText =
+            "Flask Disconnected";
+
+    }
+
+}
+
+
+
+function updateGauge(rps) {
+
+
+    const percentage =
+        rps / 1000;
+
+
+    const angle =
+        -90 +
+        percentage * 180;
+
+
+    const radians =
+        angle *
+        Math.PI /
+        180;
+
+
+    const length = 95;
+
+
+    const x =
+        150 +
+        length *
+        Math.cos(
+            radians
+        );
+
+
+    const y =
+        180 +
+        length *
+        Math.sin(
+            radians
+        );
+
+
+    const needle =
+        document.getElementById(
+            "needle"
+        );
+
+
+    needle.setAttribute(
+        "x2",
+        x
+    );
+
+
+    needle.setAttribute(
+        "y2",
+        y
+    );
+
+
+    const arc =
+        document.getElementById(
+            "arc"
+        );
+
+
+    arc.style.strokeDashoffset =
+        330 -
+        330 * percentage;
+
+}
+
+
+
+function drawChart() {
+
+
+    const canvas =
+        document.getElementById(
+            "chart"
+        );
+
+
+    const ctx =
+        canvas.getContext(
+            "2d"
+        );
+
+
+    const width =
+        canvas.width;
+
+
+    const height =
+        canvas.height;
+
+
+    ctx.clearRect(
+        0,
+        0,
+        width,
+        height
+    );
+
+
+    if (
+        history.length < 2
+    ) {
+
+        return;
+
+    }
+
+
+    ctx.strokeStyle =
+        "#1f2937";
+
+
+    for (
+        let y = 0;
+        y <= height;
+        y += 50
+    ) {
+
+        ctx.beginPath();
+
+        ctx.moveTo(
+            0,
+            y
+        );
+
+        ctx.lineTo(
+            width,
+            y
+        );
+
+        ctx.stroke();
+
+    }
+
+
+    ctx.beginPath();
+
+
+    history.forEach(
+        (value, index) => {
+
+
+            const x =
+                index *
+                width /
+                59;
+
+
+            const y =
+                height -
+                (
+                    value /
+                    1000
+                ) *
+                height;
+
+
+            if (
+                index === 0
+            ) {
+
+                ctx.moveTo(
+                    x,
+                    y
+                );
+
+            }
+
+            else {
+
+                ctx.lineTo(
+                    x,
+                    y
+                );
+
+            }
+
+        }
+    );
+
+
+    ctx.strokeStyle =
+        "#f59e0b";
+
+
+    ctx.lineWidth = 3;
+
+
+    ctx.stroke();
+
+}
+
+
+
+async function generateTraffic() {
+
+
+    for (
+        let i = 0;
+        i < 20;
+        i++
+    ) {
+
+        fetch("/test");
+
+    }
+
+}
+
+
+
+async function generateSlowTraffic() {
+
+
+    for (
+        let i = 0;
+        i < 10;
+        i++
+    ) {
+
+        fetch(
+            "/api/slow"
+        );
+
+    }
+
+}
+
+
+
+async function generateErrors() {
+
+
+    for (
+        let i = 0;
+        i < 10;
+        i++
+    ) {
+
+        fetch(
+            "/api/error"
+        );
+
+    }
+
+}
+
+
+
+setInterval(
+    updateDashboard,
+    1000
+);
+
+
+updateDashboard();
+
+
+</script>
+
+
+</body>
+
+</html>
